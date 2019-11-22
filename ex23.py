@@ -1,6 +1,7 @@
 from arr2_epec_seg_ex import Point_2
 from arr2_epec_seg_ex import Polygon_2
 from arr2_epec_seg_ex import minkowski_sum_by_full_convolution_2
+from arr2_epec_seg_ex import Arrangement_2
 import sys
 from read_input import *
 
@@ -10,7 +11,7 @@ def generate_path(path, robot, obstacles, destination):
     print("robot = " + str(robot))
     print("obstacles = " + str(obstacles))
     print("destination = " + str(destination))
-    # TODO: Minkowski sum
+    # Minkowski sum
     minus_rob = Polygon_2([Point_2(-1*x, -1*y) for x, y in robot])
     cgal_obstacles = []
     c_space_obstacles = []
@@ -21,7 +22,8 @@ def generate_path(path, robot, obstacles, destination):
         c_space_obstacles.append(minkowski_sum_by_full_convolution_2(minus_rob, obs))
     for curr_c_obc in c_space_obstacles:
         print(curr_c_obc)
-    # TODO: polygon union
+    # TODO: polygon union - optional
+    # TODO: Create arrangement
     # TODO: vertical decomposition
     # TODO: create a graph
     # TODO: find start and goal vertices (in the graph)
