@@ -4,7 +4,8 @@ from read_input import *
 import functools
 
 FREESPACE = 'freespace'
-VISITED = 'VISITED'
+VISITED = 'visited'
+DESTINATION = 'destination'
 
 
 def simple_polygon_to_arrangement(poly):
@@ -61,11 +62,13 @@ def locate(arr, point):
     return Arr_naive_point_location(arr).locate(point)
 
 
-def vertical_decompose(obs):
-    assert isinstance(obs, Arrangement_2)
+def vertical_decompose(arr):
+    assert isinstance(arr, Arrangement_2)
 
     d = []
-    decompose(obs, d)
+    verticals = Arrangement_2()
+
+    decompose(arr, d)
     for pair in d:
         # pair is a tuple
         # pair[0] is an arrangement vertex
@@ -76,14 +79,21 @@ def vertical_decompose(obs):
             if obj.is_vertex():
                 v1 = Vertex()
                 obj.get_vertex(v1)
+                insert(verticals, Curve_2(Segment_2(v0.point(), v1.point())))
             elif obj.is_halfedge():
                 he = Halfedge()
                 obj.get_halfedge(he)
+                v1 = Point_2(v0.point().x(), he.curve().line().y_at_x(v0.point().x()))
+                insert(verticals, Curve_2(Segment_2(v0.point(), v1)))
             else:  # obj is a face
-                f = Face()
-                obj.get_face(f)
+                # can only happen for the vertices of the bbox, so IGNORE
+                pass
 
-    return obs
+    res = Arrangement_2()
+    verticals.unbounded_face().set_data({FREESPACE: True})
+    overlay(arr, verticals, res, Arr_face_overlay_traits(merge_faces_by_freespace_flag))
+
+    return res
 
 
 # def extend_to_graph(arr):
@@ -113,22 +123,52 @@ def DFS(current_face):
     data[VISITED] = True
     current_face.set_data(data)
 
-    if current_face.data()['destination']:
+    if current_face.data().get(DESTINATION):
         return []
 
     for e in current_face.outer_ccb():
         assert isinstance(e, Halfedge)
         # f = Face().assign(e.face())
-        f = e.face()
+        f = e.twin().face()
         assert isinstance(f, Face)
-        if f.data()[FREESPACE] and not f.data()[VISITED]:
+        if f.data()[FREESPACE] and not f.data().get(VISITED):
             res = DFS(f)
             if res is not None:
-                c = e.curve()
-                assert isinstance(c, Curve_2)
-                res.append(e.source())
+                res.append(e.curve().source())
                 return res
     return None
+
+
+def create_bbox(c_space_obstacles, c_destination):
+    max_x = max([max(c.outer_boundary().vertices(), key=lambda v: v.x()) for c in c_space_obstacles]).x()
+    max_y = max([max(c.outer_boundary().vertices(), key=lambda v: v.y()) for c in c_space_obstacles]).y()
+    min_x = min([min(c.outer_boundary().vertices(), key=lambda v: v.x()) for c in c_space_obstacles]).x()
+    min_y = min([min(c.outer_boundary().vertices(), key=lambda v: v.y()) for c in c_space_obstacles]).y()
+
+    EXTRA = 10
+    max_x = max(max_x, c_destination.x()).to_double() + EXTRA
+    max_y = max(max_y, c_destination.y()).to_double() + EXTRA
+    min_x = min(min_x, c_destination.x()).to_double() - EXTRA
+    min_y = min(min_y, c_destination.y()).to_double() - EXTRA
+
+    bbox = Polygon_2([Point_2(a, b) for (a, b) in [(min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)]])
+
+    arr = Arrangement_2()
+    insert(arr, [Curve_2(e) for e in bbox.edges()])
+
+    # the freespace is the bounded face
+    for f in arr.faces():
+        assert isinstance(f, Face)
+        f.set_data({FREESPACE: not f.is_unbounded()})
+
+    return arr
+
+def remove_duplication(list):
+    res = [list[0]]
+    for x in list[1:]:
+        if x != res[-1]:
+            res.append(x)
+    return res
 
 
 def generate_path(path, robot, obstacles, destination):
@@ -142,26 +182,39 @@ def generate_path(path, robot, obstacles, destination):
     cgal_obstacles = [Polygon_2([Point_2(x, y) for x, y in obs]) for obs in obstacles]
     c_space_obstacles = [minkowski_sum_by_full_convolution_2(minus_robot, obs) for obs in cgal_obstacles]
     c_space_arrangements = [polygon_with_holes_to_arrangement(obs) for obs in c_space_obstacles]
-    # vertical decomposition before overlay simplifies the merge and reduces the need for merging the polygons
-    vertical_decomposition_obstacles = [vertical_decompose(obs) for obs in c_space_arrangements]
-    single_arrangement = overlay_multiple_arrangements(vertical_decomposition_obstacles, merge_faces_by_freespace_flag)
+    fake_arr_as_bbox = create_bbox(c_space_obstacles, c_destination)
+    single_arrangement = overlay_multiple_arrangements(c_space_arrangements + [fake_arr_as_bbox],
+                                                       merge_faces_by_freespace_flag)
+
+    print(single_arrangement.number_of_edges())
+    print(single_arrangement.number_of_vertices())
+    decomposed_arrangement = vertical_decompose(single_arrangement)
     # extend_to_graph(single_arrangement)
 
+    print(decomposed_arrangement.number_of_edges())
+    print(decomposed_arrangement.number_of_vertices())
+
     source_face = Face()
-    locate(single_arrangement, Point_2(0, 0)).get_face(source_face)
+    locate(decomposed_arrangement, Point_2(0, 0)).get_face(source_face)
 
     target_face = Face()
-    locate(single_arrangement, c_destination).get_face(target_face)
+    locate(decomposed_arrangement, c_destination).get_face(target_face)
     data = target_face.data()
-    data['destination'] = True
+    data[DESTINATION] = True
     target_face.set_data(data)
 
     c_path = DFS(source_face)
+    if c_path is None:
+        # TODO: return no path indication
+        print('did not find path')
+        return []
+
     c_path.append(Point_2(0, 0))
+    c_path.insert(0, c_destination)
+    c_path = remove_duplication(c_path)
 
     translate = Aff_Transformation_2(Translation(), Vector_2(*ref))
     path.extend(translate.transform(p) for p in c_path[::-1])
-    print('xxx')
     print(path)
 
 
