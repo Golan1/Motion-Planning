@@ -171,6 +171,34 @@ def remove_duplication(list):
     return res
 
 
+def get_free_face(arrangement, point):
+    face = Face()
+    # locate can return a vertex or an edge or a face
+    located_obj = locate(arrangement, point)
+    if located_obj.is_vertex():
+        ver = Vertex()
+        located_obj.get_vertex(ver)
+        he = Halfedge()
+        for e in ver.incident_halfedges():
+            if e.face().data()[FREESPACE]:
+                he = e
+                break
+            if e.twin().face().data()[FREESPACE]:
+                he = e.twin()
+                break
+        face = he.face()
+    if located_obj.is_halfedge():
+        he = Halfedge()
+        located_obj.get_halfedge(he)
+        if he.face().data()[FREESPACE]:
+            face = he.face()
+        else:
+            face = he.twin().face()
+    if located_obj.is_face():
+        located_obj.get_face(face)
+    return face
+
+
 def generate_path(path, robot, obstacles, destination):
     print("robot = " + str(robot))
     print("obstacles = " + str(obstacles))
@@ -194,11 +222,9 @@ def generate_path(path, robot, obstacles, destination):
     print(decomposed_arrangement.number_of_edges())
     print(decomposed_arrangement.number_of_vertices())
 
-    source_face = Face()
-    locate(decomposed_arrangement, Point_2(0, 0)).get_face(source_face)
+    source_face = get_free_face(decomposed_arrangement, Point_2(0, 0))
+    target_face = get_free_face(decomposed_arrangement, c_destination)
 
-    target_face = Face()
-    locate(decomposed_arrangement, c_destination).get_face(target_face)
     data = target_face.data()
     data[DESTINATION] = True
     target_face.set_data(data)
