@@ -1,7 +1,6 @@
 from arr2_epec_seg_ex import *
 import sys
 from read_input import *
-import functools
 
 FREESPACE = 'freespace'
 VISITED = 'visited'
@@ -162,6 +161,7 @@ def create_bbox(c_space_obstacles, c_destination):
         f.set_data({FREESPACE: not f.is_unbounded()})
 
     return arr
+
 
 def remove_duplication(list):
     res = [list[0]]
