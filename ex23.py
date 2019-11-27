@@ -231,9 +231,8 @@ def generate_path(path, robot, obstacles, destination):
 
     c_path = DFS(source_face)
     if c_path is None:
-        # TODO: return no path indication
         print('did not find path')
-        return []
+        return None
 
     c_path.append(Point_2(0, 0))
     c_path.insert(0, c_destination)
