@@ -30,7 +30,7 @@ def polygon_with_holes_to_arrangement(poly):
 
     for f in arr.faces():
         assert isinstance(f, Face)
-        if f.data is None:
+        if f.data() is None:
             f.set_data = {FREESPACE: True}
     return arr
 
