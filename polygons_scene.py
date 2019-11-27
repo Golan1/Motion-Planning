@@ -194,7 +194,7 @@ if __name__ == "__main__":
   gui = GUI()
   ps = Polygons_scene()
   gui.set_program_name("Polygon Scene Motion Planning")
-  gui.set_field(0, "polygon_scene0.txt")
+  gui.set_field(0, "scene_hole_error.txt")
   gui.set_field(1, "output_scene0.txt")
   gui.set_field(3, "ex23")
   gui.set_field(4, "path0.txt")
