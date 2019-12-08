@@ -1,0 +1,5 @@
+Dror Dayan, 312168784
+Golan Levy, 307858266
+
+our code is implemented in python and should be run by calling "generate_path" with a valid input (no input validity checks are done)
+we did not support semi-free path
